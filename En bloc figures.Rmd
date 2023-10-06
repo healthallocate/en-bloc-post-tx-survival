@@ -42,7 +42,7 @@ Figure 1
 age_diff = seq_data %>% 
   mutate(type = ifelse((type == 'En Bloc') & (DON_AGE.x < 1), 'En Bloc younger than 1', ifelse((type == 'En Bloc') & (DON_AGE.x >= 1), 'En Bloc 1 or older', type))) %>%
   mutate(seq = ifelse(type == 'En Bloc younger than 1', 5, seq))
-table(age_diff$type)
+
 
 skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=age_diff)
 cut_down_label = function(x){
@@ -150,7 +150,7 @@ Figure 3
 age_diff_old = merged_old %>% 
   mutate(type = ifelse((type == 'En Bloc') & (DON_AGE.x < 1), 'En Bloc under 1', ifelse((type == 'En Bloc') & (DON_AGE.x >= 1), 'En Bloc over 1', type))) %>%
   mutate(seq = ifelse(type == 'En Bloc under 1', 5, seq))
-table(age_diff_old$type)
+
 
 skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=age_diff_old)
 cut_down_label = function(x){
