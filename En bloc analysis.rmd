@@ -30,8 +30,8 @@ library(nlme)
 
 ```{r cars}
 #load data
-tx_data = read_sas("C:/Users/mhwhi/Downloads/tx_ki.sas7bdat")
-donor_data = read_sas("C:/Users/mhwhi/Downloads/donor_deceased.sas7bdat")
+tx_data = read_sas("tx_ki.sas7bdat")
+donor_data = read_sas("donor_deceased.sas7bdat")
 ```
 
 
