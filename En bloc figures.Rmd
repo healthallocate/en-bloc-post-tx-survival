@@ -437,6 +437,7 @@ ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom"
 
 ```
 
+Supplement figure 4b
 ```{r}
 #split en blocs by weight
 wgt_diff_hist = merged_old %>% 
