@@ -37,14 +37,16 @@ load("C:/Users/mhwhi/Downloads/SQL/seq_a_data_over.Rdata")
 ```
 
 Figure 1
+
 ```{r}
-#split en blocs by age
-age_diff = seq_data %>% 
-  mutate(type = ifelse((type == 'En Bloc') & (DON_AGE.x < 1), 'En Bloc younger than 1', ifelse((type == 'En Bloc') & (DON_AGE.x >= 1), 'En Bloc 1 or older', type))) %>%
-  mutate(seq = ifelse(type == 'En Bloc younger than 1', 5, seq))
+
+#split en blocs by weight
+wgt_diff_8 = seq_data %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 8), 'En Bloc smaller than 8kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 8), 'En Bloc 8kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 8kg', 5, seq))
 
 
-skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=age_diff)
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff_8)
 cut_down_label = function(x){
   substr(x, 6, nchar(x))
 }
@@ -61,29 +63,42 @@ summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
   filter(time <= 1825)
 
 colors = scales::hue_pal()(6)
-fill_labels = c("En Bloc 1 or older", "En Bloc younger than 1", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+fill_labels = c("En Bloc 8kg or larger", "En Bloc smaller than 8kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
 summary_skt_en_bloc %>%
   ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
   geom_step() + 
   scale_x_continuous(breaks = seq(0, 5, 1)) +
   labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
-  ggthemes::theme_gdocs() + lims(y = c(0.85, 1), x = c(0, 1)) +
-  scale_color_manual(values = colors, labels = fill_labels) 
-
+  ggthemes::theme_gdocs() + lims(y = c(0.75, 1), x = c(0, 1.005)) +
+  theme(
+    plot.title = element_text(color = "black"),  # Title color
+    axis.title.x = element_text(color = "black"),  # X-axis label color
+    axis.title.y = element_text(color = "black"),  # Y-axis label color
+    axis.text.x = element_text(color = "black"),  # X-axis tick labels color
+    axis.text.y = element_text(color = "black"),  # Y-axis tick labels color
+    legend.text = element_text(color = "black"),  # Legend labels color
+    legend.title = element_text(color = "black"))+   # Legend title color
+scale_color_manual(values = colors, labels = fill_labels) 
 
 ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 91, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,365), fontsize=6)
 
 
+
 ```
+
+
+
 Figure 2a
 ```{r}
-#km for matched data (< 1 year en blocs)
+#km for matched data (< 8kg en blocs)
 
 matched_enbloc_fit = survfit( Surv(time, event) ~ enbloc, data=match_data_under)
 
 cut_down_label = function(x){
   substr(x, 6, nchar(x))
 }
+
+
 summary_matched_en_bloc = tibble(counts = matched_enbloc_fit$strata,
                                  type = cut_down_label(names(matched_enbloc_fit$strata))
 ) %>% 
@@ -96,23 +111,35 @@ summary_matched_en_bloc = tibble(counts = matched_enbloc_fit$strata,
   ) %>% 
   filter(time <= 1825)
 
-colors = scales::hue_pal()(2)
-fill_labels = c("Matched Seq A SKT", "En Bloc under 1")
+
+summary_matched_en_bloc = rbind(c("c=0",0,1,1,1), summary_matched_en_bloc)
+summary_matched_en_bloc <- summary_matched_en_bloc %>%
+  mutate(across(2:5, as.numeric))
+summary_matched_en_bloc
+
+colors = c("#00BA38", "#B79F00")
+fill_labels = c("Matched Seq A SKT","En Bloc smaller than 8kg")
 summary_matched_en_bloc %>%
-  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper, fill = type, color = type)) +
+  ggplot(aes(x= time/365, y = survival, fill = type, color = type)) +
   geom_step() + 
-  scale_x_continuous(breaks = seq(0, 5, 1)) +
+  scale_x_continuous(breaks = seq(0, 5, 1), expand = c(1, 1)) +
   labs(fill = "", color = "", y = "Graft Survival", x = "Time (years post transplant)") +
   ggthemes::theme_gdocs() + 
-  geom_ribbon(alpha = 0.15, size =0) + lims(y = c(0.75,1), x= c(0,1))+
+  lims(y = c(0.8,1), x= c(0,1.01))+
   scale_fill_manual(values = colors, labels = fill_labels)+
   scale_color_manual(values = colors, labels = fill_labels)
+
+
+ggsurvtable(matched_enbloc_fit, data = match_data_under, color = "strata", palette = colors, legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 91, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,365), fontsize=6)
+
+
 
 ```
 Figure 2b
 ```{r}
-#km for matched data (>= 1 year en blocs)
-matched_enbloc_fit = survfit( Surv(time, event) ~ enbloc, data=match_data_over)
+#km for matched data (>= 8kg en blocs)
+
+matched_enbloc_fit = survfit( Surv(time, event) ~ as.factor(type), data=match_data_over)
 
 cut_down_label = function(x){
   substr(x, 6, nchar(x))
@@ -129,30 +156,41 @@ summary_matched_en_bloc = tibble(counts = matched_enbloc_fit$strata,
   ) %>% 
   filter(time <= 1825)
 
-colors = scales::hue_pal()(2)
-fill_labels = c("Matched Seq A SKT", "En Bloc over 1")
+
+summary_matched_en_bloc = rbind(c("ctor(type)=Sequence A SKT",0,1,1,1), summary_matched_en_bloc)
+summary_matched_en_bloc <- summary_matched_en_bloc %>%
+  mutate(across(2:5, as.numeric))
+
+summary_matched_en_bloc
+
+colors = c("#F8766D", "#00BA38")
+fill_labels = c("En Bloc 8kg or larger", "Matched Seq A SKT")
+
 summary_matched_en_bloc %>%
-  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper, fill = type, color = type)) +
+  ggplot(aes(x= time/365, y = survival, fill = type, color = type)) +
   geom_step() + 
   scale_x_continuous(breaks = seq(0, 5, 1)) +
   labs(fill = "", color = "", y = "Graft Survival", x = "Time (years post transplant)") +
   ggthemes::theme_gdocs() + 
-  geom_ribbon(alpha = 0.15, size =0) + lims(y = c(0.9,1), x= c(0,1))+
+  lims(y = c(0.85,1), x= c(0,1.01))+
   scale_fill_manual(values = colors, labels = fill_labels)+
   scale_color_manual(values = colors, labels = fill_labels)
+
+
+ggsurvtable(matched_enbloc_fit, data = match_data_over, color = "strata", palette = colors, legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 91, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,365.25), fontsize=6)
 
 
 ```
 
 Figure 3
 ```{r}
-#split en blocs by age
-age_diff_old = merged_old %>% 
-  mutate(type = ifelse((type == 'En Bloc') & (DON_AGE.x < 1), 'En Bloc under 1', ifelse((type == 'En Bloc') & (DON_AGE.x >= 1), 'En Bloc over 1', type))) %>%
-  mutate(seq = ifelse(type == 'En Bloc under 1', 5, seq))
+#split en blocs by weight
+wgt_diff_hist = merged_old %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 8), 'En Bloc smaller than 8kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 8), 'En Bloc 8kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 8kg', 5, seq))
 
 
-skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=age_diff_old)
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff_hist)
 cut_down_label = function(x){
   substr(x, 6, nchar(x))
 }
@@ -169,7 +207,7 @@ summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
   filter(time <= 3650)
 
 colors = scales::hue_pal()(6)
-fill_labels = c("En Bloc 1 or older", "En Bloc younger than 1", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+fill_labels = c("En Bloc 8kg or larger", "En Bloc smaller than 8kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
 summary_skt_en_bloc %>%
   ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
   geom_step() + 
@@ -178,6 +216,9 @@ summary_skt_en_bloc %>%
   ggthemes::theme_gdocs() + lims(y = c(0.25, 1), x = c(0, 10)) +
   scale_color_manual(values = colors, labels = fill_labels) 
 
+ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 913.125, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,3650), fontsize=6)
+
+
 ```
 
 
@@ -185,7 +226,7 @@ summary_skt_en_bloc %>%
 Supplement figure 1
 ```{r}
 #rerun kaplan meier to include seq b and seq c
-after_90 = age_diff[age_diff['time'] >= 90,]
+after_90 = wgt_diff_8[wgt_diff_8['time'] >= 90,]
 
 skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(seq), data=after_90)
 cut_down_label = function(x){
@@ -202,15 +243,20 @@ summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
            upper = skt_enbloc_fit$upper)
   ) %>% 
   filter(time <= 1825)
-summary_skt_en_bloc
+
+summary_skt_en_bloc = rbind(c("ctor(seq)=0",91.25,1,1,1), summary_skt_en_bloc)
+summary_skt_en_bloc = rbind(c("ctor(seq)=5",91.25,1,1,1), summary_skt_en_bloc)
+summary_skt_en_bloc = summary_skt_en_bloc %>%
+  mutate(across(2:5, as.numeric))
+
 colors = scales::hue_pal()(6)
-fill_labels = c("En Bloc 1 or older", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D", "En Bloc younger than 1")
+fill_labels = c("En Bloc 8kg or larger", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D", "En Bloc smaller than 8kg")
 summary_skt_en_bloc %>%
   ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
   geom_step() + 
   scale_x_continuous(breaks = seq(0, 5, 1)) +
   labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
-  ggthemes::theme_gdocs() + lims(y = c(0.85, 1), x = c(0.25, 1)) +
+  ggthemes::theme_gdocs() + lims(y = c(0.85, 1.01), x = c(0.25, 1)) +
   scale_color_manual(values = colors, labels = fill_labels)
 
 ```
@@ -218,9 +264,9 @@ summary_skt_en_bloc %>%
 
 Supplement figure 2a
 ```{r}
-#propensity score matching with en blocs < 1
+#propensity score matching with en blocs < 8kg
 
-match_obj = matchit(enbloc_under1 ~ REC_AGE_AT_TX + dialysis_duration + no_dial + rec_diabetes + CAN_PREV_TX + dialysis_duration*REC_AGE_AT_TX, data = seq_a_data_under, method = "nearest", distance ="glm",
+match_obj = matchit(enbloc_under8 ~ REC_AGE_AT_TX + dialysis_duration + no_dial + rec_diabetes + CAN_PREV_TX + REC_AGE_AT_TX*no_dial + REC_AGE_AT_TX*rec_diabetes, data = seq_a_data_under, method = "nearest", distance ="glm",
   ratio = 1,
   replace = FALSE)
 match_data_under = match.data(match_obj)
@@ -234,26 +280,198 @@ v = data.frame(old = c("rec_htn", "dialysis_duration", "no_dial", "REC_AGE_AT_TX
 love.plot(match_obj, stats = "m", binary = "std", threshold = .1, 
           var.order = "unadjusted", var.names = v)
 
-
 ```
 
 Supplement figure 2b
 ```{r}
-#propensity score matching with en blocs >= 1
+#propensity score matching with en blocs >= 8kg
 
-match_obj = matchit(enbloc_over1 ~ REC_AGE_AT_TX + dialysis_duration + no_dial + rec_diabetes + CAN_PREV_TX + dialysis_duration*rec_diabetes, data = seq_a_data_over, method = "nearest", distance ="glm",
+match_obj = matchit(enbloc_over8 ~ REC_AGE_AT_TX + dialysis_duration + no_dial + rec_diabetes + CAN_PREV_TX, data = seq_a_data_over, method = "nearest", distance ="glm",
   ratio = 1,
   replace = FALSE)
 match_data_over = match.data(match_obj)
 
 
-v = data.frame(old = c("rec_htn", "dialysis_duration", "no_dial", "REC_AGE_AT_TX", "CAN_PREV_TX", 
-                        "rec_diabetes", "distance"),
-                new = c("Hypertension", "Dialysis Duration", "Never Dialyzed", "Age", "Previous Transplant", "Diabetes", "Propensity Score"))
-
-
 love.plot(match_obj, stats = "m", binary = "std", threshold = .1, 
           var.order = "unadjusted", var.names = v)
 
+
+
+```
+
+Supplement figure 3a
+```{r}
+
+#split en blocs by weight
+wgt_diff = seq_data %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 12), 'En Bloc smaller than 12kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 12), 'En Bloc 12kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 12kg', 5, seq))
+
+
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff)
+cut_down_label = function(x){
+  substr(x, 6, nchar(x))
+}
+summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
+                                 type = cut_down_label(names(skt_enbloc_fit$strata))
+) %>% 
+  uncount(counts) %>% 
+  cbind(
+    tibble(time = skt_enbloc_fit$time,
+           survival = skt_enbloc_fit$surv,
+           lower = skt_enbloc_fit$lower,
+           upper = skt_enbloc_fit$upper)
+  ) %>% 
+  filter(time <= 1825)
+
+colors = scales::hue_pal()(6)
+fill_labels = c("En Bloc 12kg or larger", "En Bloc smaller than 12kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+summary_skt_en_bloc %>%
+  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
+  geom_step() + 
+  scale_x_continuous(breaks = seq(0, 5, 1)) +
+  labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
+  ggthemes::theme_gdocs() + lims(y = c(0.80, 1), x = c(0, 1)) +
+  theme(
+    plot.title = element_text(color = "black"),  # Title color
+    axis.title.x = element_text(color = "black"),  # X-axis label color
+    axis.title.y = element_text(color = "black"),  # Y-axis label color
+    axis.text.x = element_text(color = "black"),  # X-axis tick labels color
+    axis.text.y = element_text(color = "black"),  # Y-axis tick labels color
+    legend.text = element_text(color = "black"),  # Legend labels color
+    legend.title = element_text(color = "black")  # Legend title color
+  ) + scale_color_manual(values = colors, labels = fill_labels)
+
+ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 91, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,365), fontsize=6)
+
+
+```
+
+Supplement figure 3b
+```{r}
+#split en blocs by weight
+wgt_diff_hist = merged_old %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 12), 'En Bloc smaller than 12kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 12), 'En Bloc 12kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 12kg', 5, seq))
+
+
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff_hist)
+cut_down_label = function(x){
+  substr(x, 6, nchar(x))
+}
+summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
+                                 type = cut_down_label(names(skt_enbloc_fit$strata))
+) %>% 
+  uncount(counts) %>% 
+  cbind(
+    tibble(time = skt_enbloc_fit$time,
+           survival = skt_enbloc_fit$surv,
+           lower = skt_enbloc_fit$lower,
+           upper = skt_enbloc_fit$upper)
+  ) %>% 
+  filter(time <= 3650)
+
+colors = scales::hue_pal()(6)
+fill_labels = c("En Bloc 12kg or larger", "En Bloc smaller than 12kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+summary_skt_en_bloc %>%
+  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
+  geom_step() + 
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
+  ggthemes::theme_gdocs() + lims(y = c(0.25, 1), x = c(0, 10)) +
+  scale_color_manual(values = colors, labels = fill_labels) 
+
+
+
+ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 913.125, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,3650), fontsize=6)
+
+
+```
+Supplement figure 4a
+```{r}
+
+#split en blocs by weight
+wgt_diff = seq_data %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 10), 'En Bloc smaller than 10kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 10), 'En Bloc 10kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 10kg', 5, seq))
+
+
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff)
+cut_down_label = function(x){
+  substr(x, 6, nchar(x))
+}
+summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
+                                 type = cut_down_label(names(skt_enbloc_fit$strata))
+) %>% 
+  uncount(counts) %>% 
+  cbind(
+    tibble(time = skt_enbloc_fit$time,
+           survival = skt_enbloc_fit$surv,
+           lower = skt_enbloc_fit$lower,
+           upper = skt_enbloc_fit$upper)
+  ) %>% 
+  filter(time <= 1825)
+
+colors = scales::hue_pal()(6)
+fill_labels = c("En Bloc 10kg or larger", "En Bloc smaller than 10kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+summary_skt_en_bloc %>%
+  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
+  geom_step() + 
+  scale_x_continuous(breaks = seq(0, 5, 1)) +
+  labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
+  ggthemes::theme_gdocs() + lims(y = c(0.80, 1), x = c(0, 1)) +
+  theme(
+    plot.title = element_text(color = "black"),  # Title color
+    axis.title.x = element_text(color = "black"),  # X-axis label color
+    axis.title.y = element_text(color = "black"),  # Y-axis label color
+    axis.text.x = element_text(color = "black"),  # X-axis tick labels color
+    axis.text.y = element_text(color = "black"),  # Y-axis tick labels color
+    legend.text = element_text(color = "black"),  # Legend labels color
+    legend.title = element_text(color = "black")  # Legend title color
+  ) + scale_color_manual(values = colors, labels = fill_labels)
+
+
+
+ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 91, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,365), fontsize=6)
+
+
+```
+
+```{r}
+#split en blocs by weight
+wgt_diff_hist = merged_old %>% 
+  mutate(type = ifelse((type == 'En Bloc') & (DON_WGT_KG.x < 10), 'En Bloc smaller than 10kg', ifelse((type == 'En Bloc') & (DON_WGT_KG.x >= 10), 'En Bloc 10kg or larger', type))) %>%
+  mutate(seq = ifelse(type == 'En Bloc smaller than 10kg', 5, seq))
+
+
+skt_enbloc_fit = survfit( Surv(time, event)~ as.factor(type), data=wgt_diff_hist)
+cut_down_label = function(x){
+  substr(x, 6, nchar(x))
+}
+summary_skt_en_bloc = tibble(counts = skt_enbloc_fit$strata,
+                                 type = cut_down_label(names(skt_enbloc_fit$strata))
+) %>% 
+  uncount(counts) %>% 
+  cbind(
+    tibble(time = skt_enbloc_fit$time,
+           survival = skt_enbloc_fit$surv,
+           lower = skt_enbloc_fit$lower,
+           upper = skt_enbloc_fit$upper)
+  ) %>% 
+  filter(time <= 3650)
+
+colors = scales::hue_pal()(6)
+fill_labels = c("En Bloc 10kg or larger", "En Bloc smaller than 10kg", "SKT - Seq A", "SKT - Seq B", "SKT - Seq C", "SKT - Seq D")
+summary_skt_en_bloc %>%
+  ggplot(aes(x= time/365, y = survival, ymin = lower, ymax = upper,color = type)) +
+  geom_step() + 
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  labs(color = "", y = "Graft Survival", x = "Time (years post transplant)") +  # Moved labs() inside ggplot()
+  ggthemes::theme_gdocs() + lims(y = c(0.25, 1), x = c(0, 10)) +
+  scale_color_manual(values = colors, labels = fill_labels) 
+
+
+
+ggsurvtable(skt_enbloc_fit, data = seq_data, color = "strata", legend = "bottom", y.text = FALSE,  xscale=365.25, break.time.by = 913.125, ylab = "Kidney Type", legend.labs = fill_labels, survtable = "risk.table", risk.table.type = "absolute", xlim = c(0,3650), fontsize=6)
 
 ```
